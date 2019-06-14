@@ -2,7 +2,7 @@ package iRobotCreateClient;
 
 import com.robotraconteur.*;
 
-import experimental.create.*;
+import experimental.create2.*;
 
 //This program provides a simple client to the iRobotCreate service
 //that connects, drives a bit, and then disconnects
@@ -13,18 +13,16 @@ public class iRobotCreateClient {
 	 * @param args
 	 */
 	public static void main(String[] args) {
+		// Use ClientNodeSetup to initialize node
+		ClientNodeSetup setup=new ClientNodeSetup();
+		
 		try
 		{
-						
-			//Create and register a TcpTransport
-			TcpTransport t=new TcpTransport();
-			RobotRaconteurNode.s().registerTransport(t);
-			
 			//Register the Create_interface service type
-			RobotRaconteurNode.s().registerServiceType(new experimental__createFactory());
+			RobotRaconteurNode.s().registerServiceType(new experimental__create2Factory());
 			
 			//Connect to the service
-			Create c=(Create)RobotRaconteurNode.s().connectService("rr+tcp://localhost:2354?service=Create",null,null,null,"experimental.create.Create");
+			Create c=(Create)RobotRaconteurNode.s().connectService("rr+tcp://localhost:2354?service=Create",null,null,null,"experimental.create2.Create");
 			
 			//Set an event listener for the "Bump" event
 			c.addBumpListener(new Bump());
@@ -71,16 +69,17 @@ public class iRobotCreateClient {
 			{
 			c.StopStreaming();
 			}
-			catch (Exception e) {}
+			catch (Exception e) {}		
 			
-			//Shutdown Robot Raconteur.  This MUST be called on exit or the program will crash
-			RobotRaconteurNode.s().shutdown();
 		}
 		catch (Exception e)
 		{
 			e.printStackTrace(System.out);
 		}
-
+		finally
+		{
+			setup.finalize();
+		}
 	}
 	
 	//Function to handle the "Bump" event

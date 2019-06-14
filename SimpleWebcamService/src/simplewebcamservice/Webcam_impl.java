@@ -7,12 +7,12 @@ import org.opencv.*;
 import org.opencv.core.*;
 import org.opencv.video.*;
 import org.opencv.videoio.*;
-import experimental.createwebcam.*;
+import experimental.createwebcam2.*;
 
 import java.util.*;
 
 //Class to implement the "Webcam" Robot Raconteur object
-public class Webcam_impl implements Webcam {
+public class Webcam_impl extends Webcam_default_impl implements Webcam {
 	
 	VideoCapture m_capture;
 	
@@ -20,8 +20,8 @@ public class Webcam_impl implements Webcam {
 	public Webcam_impl(int cameraid, String cameraname)
 	{
 		m_capture=new VideoCapture(cameraid);
-		m_capture.set(Videoio.CV_CAP_PROP_FRAME_WIDTH, 320);
-		m_capture.set(Videoio.CV_CAP_PROP_FRAME_HEIGHT, 240);
+		m_capture.set(Videoio.CAP_PROP_FRAME_WIDTH, 320);
+		m_capture.set(Videoio.CAP_PROP_FRAME_HEIGHT, 240);
 		m_Name=cameraname;
 	}
 	
@@ -36,11 +36,7 @@ public class Webcam_impl implements Webcam {
 	public String get_Name()
 	{
 		return m_Name;
-	}
-    public void set_Name(String value)
-    {
-    	throw new RuntimeException("Read only property");
-    }
+	}    
     
     //Function to capture a frame and return the Robot Raconteur WebcamImage structure
     public synchronized WebcamImage CaptureFrame()
@@ -76,67 +72,17 @@ public class Webcam_impl implements Webcam {
     	if (!streaming) throw new RuntimeException("Not streaming");
     	streaming=false;
     }
-           
-    Pipe<WebcamImage> m_FrameStream;
     
-    //Get the FrameStream pipe server
-    public synchronized Pipe<WebcamImage> get_FrameStream()
-    {
-    	return m_FrameStream;
-   
-    }
-    
-    //Set the FrameStream pipe server
+    //Set the FrameStream backlog
     public synchronized void set_FrameStream(Pipe<WebcamImage> value)
     {
-    	m_FrameStream=value;
-    	//Set the callback for when PipeEndpoints connect
-    	m_FrameStream.setPipeConnectCallback(new pipe_connect());
+    	super.set_FrameStream(value);
+    	this.rrvar_FrameStream.setMaximumBacklog(3);
     }
     
-    public HashMap<Long,HashMap<Integer,Pipe<WebcamImage>.PipeEndpoint>> m_FrameStream_endpoints=new HashMap<Long,HashMap<Integer,Pipe<WebcamImage>.PipeEndpoint>>();
-    
-    //Function called when a PipeEndpoint connects
-    class pipe_connect implements Action1<Pipe<WebcamImage>.PipeEndpoint>
+    protected void SendFramePacket(WebcamImage frame)
     {
-
-		@Override
-		public void action(Pipe<WebcamImage>.PipeEndpoint arg0) {
-			synchronized(m_FrameStream_endpoints)
-			{
-				if (!m_FrameStream_endpoints.containsKey(arg0.getEndpoint()))
-				{
-					m_FrameStream_endpoints.put(arg0.getEndpoint(), new HashMap<Integer,Pipe<WebcamImage>.PipeEndpoint>());
-				}
-				
-				HashMap<Integer,Pipe<WebcamImage>.PipeEndpoint> dict1=m_FrameStream_endpoints.get(arg0.getEndpoint());
-				dict1.put(arg0.getIndex(), arg0);
-				arg0.setPipeCloseCallback(new pipe_closed());
-				
-			}
-			
-		}
-    	
-    }
-    
-    //Remove closed PipeEndpoints from the dictionaries
-    class pipe_closed implements Action1<Pipe<WebcamImage>.PipeEndpoint>
-    {
-
-		@Override
-		public void action(Pipe<WebcamImage>.PipeEndpoint arg0) {
-			synchronized(m_FrameStream_endpoints)
-			{
-				try
-				{
-					HashMap<Integer,Pipe<WebcamImage>.PipeEndpoint> dict1=m_FrameStream_endpoints.get(arg0.getEndpoint());
-					dict1.remove(arg0.getIndex());
-				}
-				catch (Exception e) {}
-			}
-			
-		}
-    	
+    	this.rrvar_FrameStream.sendPacket(frame);
     }
     
     //Thread to stream frames by capturing data and sending it to
@@ -151,61 +97,8 @@ public class Webcam_impl implements Webcam {
 				//Capture a frame
 				WebcamImage frame=CaptureFrame();
 				
-				//Loop through all connected PipeEndpoints and send data
-				synchronized(m_FrameStream_endpoints)
-				{
-					Set<Long> ep1=m_FrameStream_endpoints.keySet();
-					long[] endpoints=new long[ep1.size()];
-					int i=0;
-					for (long ep2 : ep1)	{ 
-						endpoints[i]=ep2;
-						i++;
-					}
-					for(long ep : endpoints)
-					{
-						if (m_FrameStream_endpoints.containsKey(ep))
-						{
-							HashMap<Integer,Pipe<WebcamImage>.PipeEndpoint> dict1=m_FrameStream_endpoints.get(ep);
-							Set<Integer> i1=dict1.keySet();
-							int[] indices=new int[i1.size()];
-							int ii=0;
-							for (int i2 : i1)	{ 
-								indices[ii]=i2;
-								ii++;
-							}
-							
-							for (int ind : indices)
-							{
-								if (dict1.containsKey(ind))
-								{
-									Pipe<WebcamImage>.PipeEndpoint pipe_ep=null;
-									try
-									{
-										pipe_ep=dict1.get(ind);
-										
-										//Send the data to the connected PipeEndpoint here
-										pipe_ep.sendPacket(frame);
-									
-									}
-									catch (Exception e)
-									{
-										//If there is an error sending the data to the pipe,
-                                        //assume the pipe has been closed.
-										try
-										{
-											
-											dict1.remove(ind);
-										}
-										catch (Exception ee) {}
-									}
-									
-								}
-							}
-						}
-						
-						
-					}
-				}
+				SendFramePacket(frame);
+				
 				try
 				{
 					
@@ -214,13 +107,9 @@ public class Webcam_impl implements Webcam {
 				catch (Exception e)
 				{
 					
-				}
-				
-			}
-			
-		}
-    	
-    	
+				}				
+			}			
+		}    	
     }
     
     UnsignedBytes m_buffer=null;

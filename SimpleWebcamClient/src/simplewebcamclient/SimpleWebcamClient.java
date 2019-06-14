@@ -13,7 +13,7 @@ import org.opencv.core.*;
 import org.opencv.imgproc.*;
 import org.opencv.imgcodecs.*;
 
-import experimental.createwebcam.*;
+import experimental.createwebcam2.*;
 
 //Simple client to read images from a Webcam server
 //and display the images
@@ -24,34 +24,37 @@ public class SimpleWebcamClient {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-				
+		
 		//Load the opencv library
-		System.loadLibrary("opencv_java310");
+		System.loadLibrary("opencv_java410");
 		
-		//Register the transport
-		TcpTransport t=new TcpTransport();
+		// Use ClientNodeSetup to initialize node
+		ClientNodeSetup setup = new ClientNodeSetup();
+		try
+		{		
+			RobotRaconteurNode.s().registerServiceType(new experimental__createwebcam2Factory());
+			
+			//Connect to service
+			WebcamHost c_host=(WebcamHost)RobotRaconteurNode.s().connectService(args[0],null,null,null,"experimental.createwebcam2.WebcamHost");
+			
+			//Get the Webcam objects from the "Webcams" objref
+			Webcam c1=c_host.get_Webcams(0);
+			Webcam c2=c_host.get_Webcams(1);
+			
+			//Capture an image and convert to OpenCV image type
+			Mat frame1=WebcamImageToMat(c1.CaptureFrame());
+			Mat frame2=WebcamImageToMat(c2.CaptureFrame());
+			
+			//Show the images
+			showImage(c1.get_Name(),frame1);
+			showImage(c2.get_Name(),frame2);
 		
-		//Register the service type
-		RobotRaconteurNode.s().registerTransport(t);
-		RobotRaconteurNode.s().registerServiceType(new experimental__createwebcamFactory());
+		}
+		finally
+		{
+			setup.finalize();
+		}
 		
-		//Connect to service
-		WebcamHost c_host=(WebcamHost)RobotRaconteurNode.s().connectService(args[0],null,null,null,"experimental.createwebcam.WebcamHost");
-		
-		//Get the Webcam objects from the "Webcams" objref
-		Webcam c1=c_host.get_Webcams(0);
-		Webcam c2=c_host.get_Webcams(1);
-		
-		//Capture an image and convert to OpenCV image type
-		Mat frame1=WebcamImageToMat(c1.CaptureFrame());
-		Mat frame2=WebcamImageToMat(c2.CaptureFrame());
-		
-		//Show the images
-		showImage(c1.get_Name(),frame1);
-		showImage(c2.get_Name(),frame2);
-		
-		//Shutdown Robot Raconteur
-		RobotRaconteurNode.s().shutdown();
 		
 	}
 	

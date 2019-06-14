@@ -1,5 +1,5 @@
 package simplewebcamservice;
-import experimental.createwebcam.*;
+import experimental.createwebcam2.*;
 
 
 import com.robotraconteur.*;
@@ -17,9 +17,8 @@ public class SimpleWebcamService {
 		{
 			
 			//Load the opencv library
-			System.loadLibrary("opencv_java310");
-			
-						
+			System.loadLibrary("opencv_java410");
+									
 			//Load a list of names of Webcams
 			WebcamHost_impl.Webcam_name[] names=new WebcamHost_impl.Webcam_name[2];
 			names[0]=new WebcamHost_impl.Webcam_name(0,"Left");
@@ -28,45 +27,28 @@ public class SimpleWebcamService {
 			//Initialize the webcams
 			WebcamHost_impl host=new WebcamHost_impl(names);
 			
-			//Initialize the local transport
-			LocalTransport t1=new LocalTransport();
-			t1.startServerAsNodeName("experimental.createwebcam.WebcamHost");
-			RobotRaconteurNode.s().registerTransport(t1);
-			
-			//Initialize the TCP transport and start listening for connections on port 2355
-			TcpTransport t2=new TcpTransport();
-			t2.startServer(2355);
-			
-			//Attempt to load a TLS certificate
+			ServerNodeSetup setup = new ServerNodeSetup("experimental.createwebcam", 2355);
 			try
-			{
-				t2.loadTlsNodeCertificate();
+			{						
+				//Register the Webcam_interface type so that the node can understand the service definition
+				RobotRaconteurNode.s().registerServiceType(new experimental__createwebcam2Factory());
+				
+				//Register the webcam host object as a service so that it can be connected to
+				RobotRaconteurNode.s().registerService("Webcam", "experimental.createwebcam2", host);
+				
+				
+				//Stay open until shut down
+				System.out.println("Webcam server started press enter to quit");
+				System.in.read();
+				
+				//Shutdown
+				host.shutdown();
 			}
-			catch (Exception e)
+			finally
 			{
-				System.out.println("warning: could not load TLS certificate");
+				setup.finalize();
 			}
 			
-			//Enable auto-discovery announcements
-			t2.enableNodeAnnounce();
-			
-			//Register the TCP channel
-			RobotRaconteurNode.s().registerTransport(t2);
-			
-			//Register the Webcam_interface type so that the node can understand the service definition
-			RobotRaconteurNode.s().registerServiceType(new experimental__createwebcamFactory());
-			
-			//Register the webcam host object as a service so that it can be connected to
-			RobotRaconteurNode.s().registerService("Webcam", "experimental.createwebcam", host);
-			
-			
-			//Stay open until shut down
-			System.out.println("Webcam server started press enter to quit");
-			System.in.read();
-			
-			//Shutdown
-			host.shutdown();
-			RobotRaconteurNode.s().shutdown();
 		}
 		catch (Exception e)
 		{

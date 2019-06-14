@@ -11,7 +11,7 @@ import org.opencv.*;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.*;
 
-import experimental.createwebcam.*;
+import experimental.createwebcam2.*;
 
 //Simple client to read streaming images from the Webcam pipe to show
 //a live view from the cameras
@@ -25,87 +25,92 @@ public class SimpleWebcamClient_streaming {
 		
 		
 		//Load the opencv library
-		System.loadLibrary("opencv_java310");
+		System.loadLibrary("opencv_java410");
 		
-		//Register the transport
-		TcpTransport t=new TcpTransport();
-		RobotRaconteurNode.s().registerTransport(t);
+		// Use ClientNodeSetup to initialize node
+		ClientNodeSetup setup = new ClientNodeSetup();
 		
-		//Register the service type
-		RobotRaconteurNode.s().registerServiceType(new experimental__createwebcamFactory());
-		
-		//Connect to the service
-		WebcamHost c_host=(WebcamHost)RobotRaconteurNode.s().connectService(args[0],null,null,null,"experimental.createwebcam.WebcamHost");
-		
-		//Get the Webcam object from the "Webcams" objref
-		Webcam c1=c_host.get_Webcams(0);
-		
-		//Connect to the FrameStream pipe and receive a PipeEndpoint
-        //PipeEndpoints a symmetric on client and service meaning that
-        //you can send and receive on both ends
-		Pipe<WebcamImage>.PipeEndpoint p=c1.get_FrameStream().connect(-1);
-		//Add a callback for when a new pipe packet is received
-		p.addPacketReceivedListener(new new_frame());
-		
-		//Start the packets streaming.  If there is an exception ignore it.
-        //Exceptions are passed transparently to the client/service.
 		try
 		{
-			c1.StartStreaming();
-		}
-		catch (Exception e) {}
-
-		JFrame frame=new JFrame();
-		JLabel label=new JLabel();
-		frame.setTitle("Live View");
-        frame.getContentPane().add(label);
-        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        frame.pack();
-        frame.setVisible(true);
 		
-		
-		while (true)
-		{
-			if (current_frame != null)
+			//Register the service type
+			RobotRaconteurNode.s().registerServiceType(new experimental__createwebcam2Factory());
+			
+			//Connect to the service
+			WebcamHost c_host=(WebcamHost)RobotRaconteurNode.s().connectService(args[0],null,null,null,"experimental.createwebcam2.WebcamHost");
+			
+			//Get the Webcam object from the "Webcams" objref
+			Webcam c1=c_host.get_Webcams(0);
+			
+			//Connect to the FrameStream pipe and receive a PipeEndpoint
+	        //PipeEndpoints a symmetric on client and service meaning that
+	        //you can send and receive on both ends
+			Pipe<WebcamImage>.PipeEndpoint p=c1.get_FrameStream().connect(-1);
+			//Add a callback for when a new pipe packet is received
+			p.addPacketReceivedListener(new new_frame());
+			
+			//Start the packets streaming.  If there is an exception ignore it.
+	        //Exceptions are passed transparently to the client/service.
+			try
 			{
-				try
-				{
-				MatOfByte matOfByte = new MatOfByte();
-			    
-			    Imgcodecs.imencode(".bmp", current_frame, matOfByte);
-			    byte[] byteArray = matOfByte.toArray();
-			    BufferedImage bufImage = null;
-			    InputStream in = new ByteArrayInputStream(byteArray);
-		        bufImage = ImageIO.read(in);
-		        label.setIcon(new ImageIcon(bufImage));
-		        frame.pack();
-				}
-				catch (Exception e)
-				{
-					e.printStackTrace();
-					return;
-				}
+				c1.StartStreaming();
 			}
-			if (!frame.isVisible())
+			catch (Exception e) {}
+	
+			JFrame frame=new JFrame();
+			JLabel label=new JLabel();
+			frame.setTitle("Live View");
+	        frame.getContentPane().add(label);
+	        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+	        frame.pack();
+	        frame.setVisible(true);
+			
+			
+			while (true)
 			{
-				break;
-			}
-			try {
-				Thread.sleep(50);
-			} catch (InterruptedException e) {				
+				if (current_frame != null)
+				{
+					try
+					{
+					MatOfByte matOfByte = new MatOfByte();
+				    
+				    Imgcodecs.imencode(".bmp", current_frame, matOfByte);
+				    byte[] byteArray = matOfByte.toArray();
+				    BufferedImage bufImage = null;
+				    InputStream in = new ByteArrayInputStream(byteArray);
+			        bufImage = ImageIO.read(in);
+			        label.setIcon(new ImageIcon(bufImage));
+			        frame.pack();
+					}
+					catch (Exception e)
+					{
+						e.printStackTrace();
+						return;
+					}
+				}
+				if (!frame.isVisible())
+				{
+					break;
+				}
+				try {
+					Thread.sleep(50);
+				} catch (InterruptedException e) {				
+					
+				}
 				
 			}
 			
+			//Close the PipeEndpoint
+			p.close();
+			
+			//Stop streaming the frame
+			c1.StopStreaming();
+		
 		}
-		
-		//Close the PipeEndpoint
-		p.close();
-		
-		//Stop streaming the frame
-		c1.StopStreaming();
-		
-		//Shutdown Robot Raconteur
-		RobotRaconteurNode.s().shutdown();
+		finally
+		{
+			setup.finalize();			
+		}
 		
 	}
 	

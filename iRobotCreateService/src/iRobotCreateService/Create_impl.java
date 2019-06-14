@@ -6,13 +6,13 @@ import java.io.*;
 import com.robotraconteur.*;
 
 import gnu.io.*;
-import experimental.create.*;
+import experimental.create2.*;
 
 //The implementation of the create object.  It implementes Create_interface.Create.  
 //This allows the object to be exposed using the Create_interface
 //service definition.
 
-public class Create_impl implements Create  {
+public class Create_impl extends Create_default_impl implements Create  {
 
 	private int m_DistanceTraveled=0;
 	private int m_AngleTraveled=0;
@@ -25,7 +25,7 @@ public class Create_impl implements Create  {
 	private boolean streaming=false;
 	
 	//Initialize the serial port and set the data received callback
-	public void start(String portName) throws NoSuchPortException, PortInUseException, UnsupportedCommOperationException, IOException
+	public void start(String portName) throws NoSuchPortException, PortInUseException, UnsupportedCommOperationException, java.io.IOException
 	{
 		Enumeration portIdentifiers = CommPortIdentifier.getPortIdentifiers();
 		
@@ -97,12 +97,6 @@ public class Create_impl implements Create  {
 	@Override
 	public synchronized int get_DistanceTraveled() {
 		return m_DistanceTraveled;
-	}
-
-	@Override
-	public synchronized void set_DistanceTraveled(int value) {
-		throw new RuntimeException("Read only property");
-		
 	}
 
 	//Read property for AngleTraveled
@@ -250,73 +244,6 @@ public class Create_impl implements Create  {
 		
 		}
 	}
-
-	Callback<Func2<Integer, Integer, UnsignedBytes>> m_play_callback;
-	
-	//get and set for play_callback server
-	@Override
-	public Callback<Func2<Integer, Integer, UnsignedBytes>> get_play_callback() {
-		return m_play_callback;
-	}
-	@Override
-	public synchronized void set_play_callback(
-			Callback<Func2<Integer, Integer, UnsignedBytes>> value) {
-		m_play_callback=value;
-	}
-
-	
-	Wire<SensorPacket> m_packets;
-	
-	//get and set for packets Wire 
-	@Override
-	public Wire<SensorPacket> get_packets() {
-		
-		return m_packets;
-	}
-	@Override
-	public synchronized void set_packets(Wire<SensorPacket> value) {
-		m_packets=value;
-		//Set the callback for Wire connect
-		value.setWireConnectCallback(new packets_connect());
-		
-	}
-	
-	HashMap<Long,Wire<SensorPacket>.WireConnection> wireconnections=new HashMap<Long,Wire<SensorPacket>.WireConnection>();
-	
-	//Callback for Wire connect
-	class packets_connect implements Action2<Wire<SensorPacket>,Wire<SensorPacket>.WireConnection>
-	{
-
-		@Override
-		public void action(Wire<SensorPacket> arg0, Wire<SensorPacket>.WireConnection arg1) {
-			synchronized(wireconnections)
-			{
-				//Store WireConnection
-				wireconnections.put( arg1.getEndpoint(), arg1);
-				//Set the callback for wire closed
-				arg1.setWireCloseCallback(new packets_closed());
-			}
-			
-		}
-		
-	}
-	
-	//Callback for Wire closed
-	class packets_closed implements Action1<Wire<SensorPacket>.WireConnection>
-	{
-
-		@Override
-		public void action(Wire<SensorPacket>.WireConnection arg0) {
-			synchronized(wireconnections)
-			{
-				//Delete the WireConnection
-				wireconnections.remove(arg0.getEndpoint());
-			}
-		}
-		
-	
-	}
-	
 	
 	boolean lastbump=false;
 	boolean lastplay=false;
@@ -436,16 +363,9 @@ public class Create_impl implements Create  {
                          default:
 
                              readpos++;
-                             break;
-							
-						
-						}
-						
-						
+                             break;						
+						}						
 					}
-					
-					
-					
 				}
 			}
 			catch (Exception e)
@@ -454,12 +374,8 @@ public class Create_impl implements Create  {
 				{
 					e.printStackTrace(System.out);
 				}
-			}
-			
-			
-		}
-		
-		
+			}			
+		}	
 	}
 	
 	//Send the sensor packet to all connected WireConnections
@@ -469,53 +385,13 @@ public class Create_impl implements Create  {
 		p.ID =id;
 		p.Data=packet;
 		
-		synchronized(wireconnections)
+		if (this.rrvar_packets!=null)
 		{
-			Set<Long> ep1=wireconnections.keySet();
-			long[] ep=new long[ep1.size()];
-			int i=0;
-			for (long e : ep1)
-			{
-				ep[i]=e;
-				i++;
-			}
-			
-			//Loop through all connected WireConnections
-			for (long e : ep)
-			{
-				Wire<SensorPacket>.WireConnection wend=wireconnections.get(e);
-				
-				try
-				{
-					//Set the OutValue to the current packet
-					wend.setOutValue(p);
-				}
-				catch (Exception ex)
-				{
-					//If there is an error, assume the wire is closed
-					//and remove it
-					try
-					{
-						
-						wend.close();
-					}
-					catch (Exception ex2) {}
-					
-					try
-					{
-						wireconnections.remove(e);
-					}
-					catch (Exception ex2) {}
-				}
-				
-			
-			}
-			
+			this.rrvar_packets.setOutValue(p);
 		}
 	
 	}
-	
-	
+		
 	//Play a song.  This calls the client through the play_callback
 	//to retrieve the notes
 	private void play()

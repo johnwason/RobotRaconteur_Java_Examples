@@ -3,9 +3,9 @@ package simplewebcamservice;
 import com.robotraconteur.*;
 import java.util.*;
 
-import experimental.createwebcam.*;
+import experimental.createwebcam2.*;
 
-public class WebcamHost_impl implements WebcamHost {
+public class WebcamHost_impl extends WebcamHost_default_impl implements WebcamHost {
 
 	public static class Webcam_name
 	{
@@ -63,13 +63,7 @@ public class WebcamHost_impl implements WebcamHost {
 		}
 		return o;
 	}
-
-	@Override
-	public void set_WebcamNames(Map<Integer, String> value) {
-		throw new RuntimeException("Read only property");
-		
-	}
-
+	
 	@Override
 	public synchronized Webcam get_Webcams(int ind) {
 		
